@@ -9,14 +9,26 @@ export default function Dashboard() {
   useEffect(() => {
     fetch('/api/clients')
       .then(res => res.json())
-      .then(data => setStats(s => ({ ...s, clients: data.length })));
+      .then(data => {
+        if (Array.isArray(data)) {
+          setStats(s => ({ ...s, clients: data.length }));
+        } else {
+          console.error('Failed to fetch clients:', data);
+        }
+      })
+      .catch(err => console.error(err));
       
     fetch('/api/entretiens')
       .then(res => res.json())
       .then(data => {
-        setStats(s => ({ ...s, entretiens: data.length }));
-        setRecentEntretiens(data.slice(0, 5));
-      });
+        if (Array.isArray(data)) {
+          setStats(s => ({ ...s, entretiens: data.length }));
+          setRecentEntretiens(data.slice(0, 5));
+        } else {
+          console.error('Failed to fetch entretiens:', data);
+        }
+      })
+      .catch(err => console.error(err));
   }, []);
 
   return (

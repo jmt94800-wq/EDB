@@ -5,13 +5,10 @@ import db, { initDB } from './db.js';
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   app.use(cors());
   app.use(express.json());
-
-  // Initialize DB
- // await initDB();
 
   // API Routes
   app.get('/api/clients', async (req, res) => {
@@ -93,26 +90,37 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
- if (process.env.NODE_ENV !== 'PROD') {
-   const vite = await createViteServer({
-     server: { 
-       middlewareMode: true,
-       allowedHosts: true
-     },
-     appType: 'spa',
+  // Start listening immediately to satisfy Cloud Run health checks
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${PORT}`);
   });
-  app.use(vite.middlewares);
-}
+
+  // Determine if we are in production (Cloud Run sets K_SERVICE)
+  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.K_SERVICE;
+
+  // Vite middleware for development
+  if (!isProduction) {
+    try {
+      const vite = await createViteServer({
+        server: { 
+          middlewareMode: true,
+          allowedHosts: true
+        },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (err) {
+      console.error("Failed to start Vite server:", err);
+    }
   } else {
     app.use(express.static('dist'));
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
   // Initialize DB (non-blocking)
   initDB().catch(err => console.error("Failed to initialize DB:", err));
 }
-startServer();
+
+startServer().catch(err => {
+  console.error("Fatal error during server startup:", err);
+  process.exit(1);
+});

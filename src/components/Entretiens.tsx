@@ -8,7 +8,15 @@ export default function Entretiens() {
   useEffect(() => {
     fetch('/api/entretiens')
       .then(res => res.json())
-      .then(data => setEntretiens(data));
+      .then(data => {
+        if (Array.isArray(data)) {
+          setEntretiens(data);
+        } else {
+          console.error('Failed to fetch entretiens:', data);
+          setEntretiens([]);
+        }
+      })
+      .catch(err => console.error(err));
   }, []);
 
   return (

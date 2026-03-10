@@ -9,7 +9,15 @@ export default function Clients() {
   useEffect(() => {
     fetch('/api/clients')
       .then(res => res.json())
-      .then(data => setClients(data));
+      .then(data => {
+        if (Array.isArray(data)) {
+          setClients(data);
+        } else {
+          console.error('Failed to fetch clients:', data);
+          setClients([]);
+        }
+      })
+      .catch(err => console.error(err));
   }, []);
 
   const filtered = clients.filter(c => 
