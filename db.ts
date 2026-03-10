@@ -10,6 +10,7 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_NAME || 'postgres',
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
+  connectionTimeoutMillis: 5000,
 });
 
 export const initDB = async () => {
