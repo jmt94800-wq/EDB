@@ -94,12 +94,16 @@ async function startServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+ if (process.env.NODE_ENV !== 'PROD') {
+   const vite = await createViteServer({
+     server: { 
+       middlewareMode: true,
+       allowedHosts: true
+     },
+     appType: 'spa',
+  });
+  app.use(vite.middlewares);
+}
   } else {
     app.use(express.static('dist'));
   }
