@@ -11,7 +11,7 @@ async function startServer() {
   app.use(express.json());
 
   // Initialize DB
-  await initDB();
+ // await initDB();
 
   // API Routes
   app.get('/api/clients', async (req, res) => {
@@ -112,5 +112,7 @@ async function startServer() {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
-
+  // Initialize DB (non-blocking)
+  initDB().catch(err => console.error("Failed to initialize DB:", err));
+}
 startServer();
