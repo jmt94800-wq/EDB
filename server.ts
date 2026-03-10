@@ -18,6 +18,19 @@ async function startServer() {
     } catch (e: any) { res.status(500).json({error: e.message}); }
   });
 
+  app.post('/api/clients', async (req, res) => {
+    const { nom, prenom, email, ville, adresse } = req.body;
+    try {
+      const insertRes = await db.query(`
+        INSERT INTO clients (nom, prenom, email, ville, adresse)
+        VALUES ($1, $2, $3, $4, $5) RETURNING id
+      `, [nom, prenom, email, ville, adresse]);
+      res.json({ id: insertRes.rows[0].id, success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get('/api/clients/:id', async (req, res) => {
     try {
       const clientRes = await db.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
