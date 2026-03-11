@@ -132,6 +132,40 @@ async function startServer() {
     }
   });
 
+  app.get('/api/test-db', async (req, res) => {
+    try {
+      const readResult = await db.query('SELECT COUNT(*) FROM clients');
+      
+      const testEmail = `test-${Date.now()}@example.com`;
+      const insertResult = await db.query(`
+        INSERT INTO clients (nom, prenom, email, ville, adresse)
+        VALUES ($1, $2, $3, $4, $5) RETURNING id, nom, email
+      `, ['TestNom', 'TestPrenom', testEmail, 'Paris', '123 rue Test']);
+      
+      const newClient = insertResult.rows[0];
+      
+      await db.query('DELETE FROM clients WHERE id = $1', [newClient.id]);
+      
+      res.json({
+        success: true,
+        message: "Lecture et écriture réussies dans la base de données.",
+        details: {
+          clientsCount: readResult.rows[0].count,
+          insertedClient: newClient,
+          deleted: true
+        }
+      });
+    } catch (error: any) {
+      console.error("Erreur test DB:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        detail: error.detail,
+        hint: error.hint
+      });
+    }
+  });
+
   // Start listening immediately to satisfy Cloud Run health checks
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
