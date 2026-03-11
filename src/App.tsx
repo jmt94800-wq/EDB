@@ -67,6 +67,23 @@ function Layout({ children }: { children: React.ReactNode }) {
 
 // Nouvelles pages
 function SettingsPage() {
+  const [dbTestResult, setDbTestResult] = useState<any>(null);
+  const [testingDb, setTestingDb] = useState(false);
+
+  const handleTestDb = async () => {
+    setTestingDb(true);
+    setDbTestResult(null);
+    try {
+      const res = await fetch('/api/test-db');
+      const data = await res.json();
+      setDbTestResult(data);
+    } catch (err: any) {
+      setDbTestResult({ success: false, error: err.message });
+    } finally {
+      setTestingDb(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <h1 className="text-2xl font-semibold text-slate-900">Paramètres</h1>
@@ -113,6 +130,41 @@ function SettingsPage() {
               <span className="translate-x-0 pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-6 border-b border-slate-200">
+          <h2 className="text-lg font-medium text-slate-900">Base de données</h2>
+          <p className="text-sm text-slate-500 mt-1">Testez la connexion et les droits d'écriture de votre base de données PostgreSQL.</p>
+        </div>
+        <div className="p-6 space-y-4">
+          <button 
+            onClick={handleTestDb} 
+            disabled={testingDb}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          >
+            {testingDb ? 'Test en cours...' : 'Lancer le test de connexion'}
+          </button>
+
+          {dbTestResult && (
+            <div className={`mt-4 p-4 rounded-xl border ${dbTestResult.success ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+              <h3 className="font-semibold mb-2">
+                {dbTestResult.success ? '✅ Test réussi !' : '❌ Échec du test'}
+              </h3>
+              {dbTestResult.success ? (
+                <pre className="text-xs overflow-auto">{JSON.stringify(dbTestResult.details, null, 2)}</pre>
+              ) : (
+                <div className="text-sm space-y-1">
+                  <p><strong>Erreur :</strong> {dbTestResult.error}</p>
+                  {dbTestResult.detail && <p><strong>Détail :</strong> {dbTestResult.detail}</p>}
+                  <p className="mt-2 text-xs opacity-80">
+                    Note : Si vous voyez "connect ECONNREFUSED 127.0.0.1:5432", cela signifie qu'aucune base de données PostgreSQL n'est accessible. Vous devez configurer les variables d'environnement (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME) dans les paramètres de votre hébergeur.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
