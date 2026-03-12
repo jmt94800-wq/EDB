@@ -45,6 +45,56 @@ async function startServer() {
     } catch (e: any) { res.status(500).json({error: e.message}); }
   });
 
+  app.post('/api/sujets', async (req, res) => {
+    const { client_id, titre, description } = req.body;
+    try {
+      const insertRes = await db.query(`
+        INSERT INTO sujets (client_id, titre, description)
+        VALUES ($1, $2, $3) RETURNING id
+      `, [client_id, titre, description]);
+      res.json({ id: insertRes.rows[0].id, success: true });
+    } catch (error: any) {
+      console.error("Erreur création sujet:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/stats', async (req, res) => {
+    try {
+      const clientsCount = await db.query('SELECT COUNT(*) FROM clients');
+      const entretiensCount = await db.query('SELECT COUNT(*) FROM entretiens');
+      const sujetsCount = await db.query('SELECT COUNT(*) FROM sujets');
+      
+      const entretiensByStatus = await db.query(`
+        SELECT statut, COUNT(*) as count 
+        FROM entretiens 
+        GROUP BY statut
+      `);
+
+      // Get last 6 months of interviews for a chart
+      const entretiensByMonth = await db.query(`
+        SELECT 
+          TO_CHAR(CAST(date_debut AS TIMESTAMP), 'YYYY-MM') as month,
+          COUNT(*) as count
+        FROM entretiens
+        GROUP BY month
+        ORDER BY month DESC
+        LIMIT 6
+      `);
+
+      res.json({
+        clients: parseInt(clientsCount.rows[0].count),
+        entretiens: parseInt(entretiensCount.rows[0].count),
+        sujets: parseInt(sujetsCount.rows[0].count),
+        byStatus: entretiensByStatus.rows,
+        byMonth: entretiensByMonth.rows.reverse()
+      });
+    } catch (e: any) { 
+      console.error("Erreur stats:", e);
+      res.status(500).json({error: e.message}); 
+    }
+  });
+
   app.post('/api/entretiens', async (req, res) => {
     const { sujet_id, date_debut, notes } = req.body;
     try {
