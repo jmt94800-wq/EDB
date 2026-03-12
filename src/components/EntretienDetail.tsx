@@ -78,7 +78,7 @@ Langue de réponse demandée : ${language}
 
 Contexte de l'entretien :
 - Nom/Prénom du client : ${entretien.client_nom} ${entretien.client_prenom}
-- Sujet principal : ${entretien.sujet_titre}
+- Sujet principal : ${entretien.sujet_titre || 'À définir lors de cet entretien'}
 - Date de l'entretien : ${entretien.date_debut}
 
 Transcription de l'entretien :
@@ -147,7 +147,7 @@ ${notes || 'Aucunes notes fournies.'}
                 {new Date(entretien.date_debut).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">{entretien.sujet_titre}</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{entretien.sujet_titre || 'Entretien initial / Découverte'}</h1>
             <Link to={`/clients/${entretien.client_id}`} className="inline-flex items-center mt-2 text-indigo-600 hover:text-indigo-700 font-medium">
               <User className="w-4 h-4 mr-1.5" /> {entretien.client_prenom} {entretien.client_nom}
             </Link>

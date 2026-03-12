@@ -119,7 +119,7 @@ export default function Dashboard() {
                     <div className={`w-2 h-2 rounded-full mr-4 ${ent.statut === 'cloture' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                     <div>
                       <p className="text-sm font-medium text-slate-900">{ent.client_nom} {ent.client_prenom}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{ent.sujet_titre}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{ent.sujet_titre || 'Entretien initial / Découverte'}</p>
                     </div>
                   </div>
                   <div className="flex items-center text-sm text-slate-500">

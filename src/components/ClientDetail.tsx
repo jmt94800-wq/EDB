@@ -127,7 +127,7 @@ export default function ClientDetail() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${ent.statut === 'cloture' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                      <h3 className="text-sm font-medium text-slate-900">{ent.sujet_titre}</h3>
+                      <h3 className="text-sm font-medium text-slate-900">{ent.sujet_titre || 'Entretien initial / Découverte'}</h3>
                     </div>
                     <p className="text-xs text-slate-500 mt-1.5">
                       {new Date(ent.date_debut).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}

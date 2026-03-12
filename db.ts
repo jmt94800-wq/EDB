@@ -87,6 +87,25 @@ export const initDB = async () => {
       );
     `);
 
+    // Migration: Add client_id to entretiens if it doesn't exist
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='entretiens' AND column_name='client_id') THEN
+          ALTER TABLE entretiens ADD COLUMN client_id INTEGER REFERENCES clients(id);
+        END IF;
+      END
+      $$;
+    `);
+
+    // Backfill client_id for existing entretiens based on sujet_id
+    await pool.query(`
+      UPDATE entretiens
+      SET client_id = sujets.client_id
+      FROM sujets
+      WHERE entretiens.sujet_id = sujets.id AND entretiens.client_id IS NULL;
+    `);
+
     // Insertion de données de test si la base est vide
     const { rows } = await pool.query('SELECT COUNT(*) as count FROM clients');
     if (parseInt(rows[0].count) === 0) {

@@ -96,13 +96,13 @@ async function startServer() {
   });
 
   app.post('/api/entretiens', async (req, res) => {
-    const { sujet_id, date_debut, notes } = req.body;
+    const { client_id, sujet_id, date_debut, notes } = req.body;
     try {
-      // Hardcode user_id to 1 for now since auth is not fully implemented
+      const finalSujetId = sujet_id ? sujet_id : null;
       const insertRes = await db.query(`
-        INSERT INTO entretiens (sujet_id, user_id, date_debut, statut, notes)
-        VALUES ($1, $2, $3, $4, $5) RETURNING id
-      `, [sujet_id, 1, date_debut, 'planifie', notes]);
+        INSERT INTO entretiens (client_id, sujet_id, user_id, date_debut, statut, notes)
+        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+      `, [client_id, finalSujetId, 1, date_debut, 'planifie', notes]);
       res.json({ id: insertRes.rows[0].id, success: true });
     } catch (error: any) {
       console.error("Erreur création entretien:", error);
@@ -119,8 +119,8 @@ async function startServer() {
       const entretiensRes = await db.query(`
         SELECT e.*, s.titre as sujet_titre 
         FROM entretiens e 
-        JOIN sujets s ON e.sujet_id = s.id 
-        WHERE s.client_id = $1
+        LEFT JOIN sujets s ON e.sujet_id = s.id 
+        WHERE e.client_id = $1
         ORDER BY e.date_debut DESC
       `, [req.params.id]);
 
@@ -133,8 +133,8 @@ async function startServer() {
       const { rows } = await db.query(`
         SELECT e.*, s.titre as sujet_titre, c.nom as client_nom, c.prenom as client_prenom
         FROM entretiens e
-        JOIN sujets s ON e.sujet_id = s.id
-        JOIN clients c ON s.client_id = c.id
+        LEFT JOIN sujets s ON e.sujet_id = s.id
+        JOIN clients c ON e.client_id = c.id
         ORDER BY e.date_debut DESC
       `);
       res.json(rows);
@@ -146,8 +146,8 @@ async function startServer() {
       const entretienRes = await db.query(`
         SELECT e.*, s.titre as sujet_titre, c.nom as client_nom, c.prenom as client_prenom, c.id as client_id
         FROM entretiens e
-        JOIN sujets s ON e.sujet_id = s.id
-        JOIN clients c ON s.client_id = c.id
+        LEFT JOIN sujets s ON e.sujet_id = s.id
+        JOIN clients c ON e.client_id = c.id
         WHERE e.id = $1
       `, [req.params.id]);
       

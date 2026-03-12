@@ -40,7 +40,7 @@ export default function Entretiens() {
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-slate-900">{ent.client_prenom} {ent.client_nom}</h3>
-                    <p className="text-xs text-slate-500 mt-1">{ent.sujet_titre}</p>
+                    <p className="text-xs text-slate-500 mt-1">{ent.sujet_titre || 'Entretien initial / Découverte'}</p>
                   </div>
                 </div>
                 <div className="text-right">
