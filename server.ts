@@ -159,6 +159,35 @@ async function startServer() {
     } catch (e: any) { res.status(500).json({error: e.message}); }
   });
 
+  app.put('/api/entretiens/:id', async (req, res) => {
+    const { date_debut, statut } = req.body;
+    try {
+      const updates = [];
+      const values = [];
+      let query = 'UPDATE entretiens SET ';
+      
+      if (date_debut) {
+        updates.push(`date_debut = $${updates.length + 1}`);
+        values.push(date_debut);
+      }
+      if (statut) {
+        updates.push(`statut = $${updates.length + 1}`);
+        values.push(statut);
+      }
+      
+      if (updates.length === 0) return res.json({ success: true });
+      
+      query += updates.join(', ') + ` WHERE id = $${updates.length + 1}`;
+      values.push(req.params.id);
+      
+      await db.query(query, values);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Erreur update entretien:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post('/api/debriefings', async (req, res) => {
     const { entretien_id, resume, points_cles, questions_followup } = req.body;
     

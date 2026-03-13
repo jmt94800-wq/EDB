@@ -16,6 +16,9 @@ export default function EntretienDetail() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState('');
   const [aiError, setAiError] = useState('');
+  
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [newDate, setNewDate] = useState('');
 
   useEffect(() => {
     fetch(`/api/entretiens/${id}`)
@@ -124,6 +127,25 @@ ${notes || 'Aucunes notes fournies.'}
     }
   };
 
+  const updateEntretien = async (updates: any) => {
+    try {
+      const res = await fetch(`/api/entretiens/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (res.ok) {
+        setEntretien({ ...entretien, ...updates });
+        setIsRescheduling(false);
+      } else {
+        alert('Erreur lors de la mise à jour');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la mise à jour');
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-slate-500">Chargement...</div>;
   if (!entretien || entretien.error) return <div className="p-8 text-center text-red-500">Entretien introuvable</div>;
 
@@ -136,21 +158,51 @@ ${notes || 'Aucunes notes fournies.'}
       {/* Header */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
+          <div className="w-full">
             <div className="flex items-center gap-3 mb-2">
               <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${entretien.statut === 'cloture' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                 {entretien.statut === 'cloture' ? <CheckCircle className="w-3.5 h-3.5 mr-1" /> : <Clock className="w-3.5 h-3.5 mr-1" />}
                 {entretien.statut === 'cloture' ? 'Clôturé' : 'Planifié'}
               </span>
-              <span className="text-sm font-medium text-slate-500 flex items-center">
-                <Calendar className="w-4 h-4 mr-1" />
-                {new Date(entretien.date_debut).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </span>
+              
+              {entretien.statut !== 'cloture' && (
+                <button 
+                  onClick={() => updateEntretien({ statut: 'cloture' })} 
+                  className="text-xs bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 px-2 py-1 rounded-md font-medium transition-colors"
+                >
+                  Marquer comme clôturé
+                </button>
+              )}
             </div>
             <h1 className="text-2xl font-bold text-slate-900">{entretien.sujet_titre || 'Entretien initial / Découverte'}</h1>
             <Link to={`/clients/${entretien.client_id}`} className="inline-flex items-center mt-2 text-indigo-600 hover:text-indigo-700 font-medium">
               <User className="w-4 h-4 mr-1.5" /> {entretien.client_prenom} {entretien.client_nom}
             </Link>
+            
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              {isRescheduling ? (
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="datetime-local" 
+                    value={newDate} 
+                    onChange={e => setNewDate(e.target.value)} 
+                    className="text-sm border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                  />
+                  <button onClick={() => updateEntretien({ date_debut: new Date(newDate).toISOString() })} className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-700">Valider</button>
+                  <button onClick={() => setIsRescheduling(false)} className="text-sm bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-medium hover:bg-slate-200">Annuler</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-slate-600 flex items-center">
+                    <Calendar className="w-4 h-4 mr-1.5 text-slate-400" />
+                    {new Date(entretien.date_debut).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} à {new Date(entretien.date_debut).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}
+                  </span>
+                  <button onClick={() => { setNewDate(entretien.date_debut.slice(0, 16)); setIsRescheduling(true); }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium bg-indigo-50 px-2 py-1 rounded-md">
+                    Décaler l'entretien
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

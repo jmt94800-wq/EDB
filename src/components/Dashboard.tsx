@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Calendar, Folder, Clock } from 'lucide-react';
+import { Users, Calendar as CalendarIcon, Folder, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ clients: 0, entretiens: 0, sujets: 0, byStatus: [], byMonth: [] });
   const [recentEntretiens, setRecentEntretiens] = useState<any[]>([]);
+  const [allEntretiens, setAllEntretiens] = useState<any[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   useEffect(() => {
     fetch('/api/stats')
@@ -21,6 +23,7 @@ export default function Dashboard() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
+          setAllEntretiens(data);
           setRecentEntretiens(data.slice(0, 5));
         }
       })
@@ -35,6 +38,26 @@ export default function Dashboard() {
       name: date.toLocaleDateString('fr-FR', { month: 'short' }),
       entretiens: parseInt(item.count)
     };
+  });
+
+  // Calendar logic
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+
+  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year: number, month: number) => {
+    let day = new Date(year, month, 1).getDay();
+    return day === 0 ? 6 : day - 1; // Make Monday = 0
+  };
+
+  const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+  const firstDay = getFirstDayOfMonth(currentDate.getFullYear(), currentDate.getMonth());
+  
+  const days = Array.from({ length: 42 }, (_, i) => {
+    const dayNumber = i - firstDay + 1;
+    const isCurrentMonth = dayNumber > 0 && dayNumber <= daysInMonth;
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNumber);
+    return { dayNumber, isCurrentMonth, date };
   });
 
   return (
@@ -73,8 +96,56 @@ export default function Dashboard() {
               <p className="text-3xl font-semibold text-slate-900 mt-1">{stats.entretiens}</p>
             </div>
             <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center">
-              <Calendar className="text-emerald-600 h-6 w-6" />
+              <CalendarIcon className="text-emerald-600 h-6 w-6" />
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Calendrier */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center">
+          <h2 className="text-lg font-medium text-slate-900 flex items-center gap-2">
+            <CalendarIcon className="w-5 h-5 text-indigo-500" /> Calendrier des entretiens
+          </h2>
+          <div className="flex items-center gap-4">
+            <button onClick={prevMonth} className="p-1 hover:bg-slate-100 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5 text-slate-600" /></button>
+            <span className="font-medium text-slate-900 min-w-[150px] text-center capitalize">
+              {currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+            </span>
+            <button onClick={nextMonth} className="p-1 hover:bg-slate-100 rounded-lg transition-colors"><ChevronRight className="w-5 h-5 text-slate-600" /></button>
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-xl overflow-hidden">
+            {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(d => (
+              <div key={d} className="bg-slate-50 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">{d}</div>
+            ))}
+            {days.map((day, i) => {
+              const dayEntretiens = allEntretiens.filter(e => {
+                const eDate = new Date(e.date_debut);
+                return eDate.getDate() === day.date.getDate() && 
+                       eDate.getMonth() === day.date.getMonth() && 
+                       eDate.getFullYear() === day.date.getFullYear();
+              });
+              
+              const isToday = day.date.toDateString() === new Date().toDateString();
+              
+              return (
+                <div key={i} className={`min-h-[100px] bg-white p-2 transition-colors hover:bg-slate-50 ${!day.isCurrentMonth ? 'opacity-40' : ''}`}>
+                  <span className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-indigo-600 text-white' : 'text-slate-700'}`}>
+                    {day.date.getDate()}
+                  </span>
+                  <div className="space-y-1.5">
+                    {dayEntretiens.map(ent => (
+                      <Link key={ent.id} to={`/entretiens/${ent.id}`} className={`block text-xs truncate px-2 py-1 rounded-md border ${ent.statut === 'cloture' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-amber-50 border-amber-100 text-amber-700'} hover:opacity-80 transition-opacity`} title={`${ent.client_prenom} ${ent.client_nom} - ${ent.sujet_titre || 'Découverte'}`}>
+                        <span className="font-semibold">{new Date(ent.date_debut).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</span> {ent.client_nom}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
