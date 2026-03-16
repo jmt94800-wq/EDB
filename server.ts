@@ -1,4 +1,5 @@
 import express from 'express';
+import 'dotenv/config';
 import { createServer as createViteServer } from 'vite';
 import cors from 'cors';
 import db, { initDB } from './db.js';
@@ -160,7 +161,7 @@ async function startServer() {
   });
 
   app.put('/api/entretiens/:id', async (req, res) => {
-    const { date_debut, statut } = req.body;
+    const { date_debut, statut, sujet_id } = req.body;
     try {
       const updates = [];
       const values = [];
@@ -173,6 +174,10 @@ async function startServer() {
       if (statut) {
         updates.push(`statut = $${updates.length + 1}`);
         values.push(statut);
+      }
+      if (sujet_id !== undefined) {
+        updates.push(`sujet_id = $${updates.length + 1}`);
+        values.push(sujet_id);
       }
       
       if (updates.length === 0) return res.json({ success: true });
@@ -262,6 +267,9 @@ async function startServer() {
           allowedHosts: true
         },
         appType: 'spa',
+        define: {
+          'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY)
+        }
       });
       app.use(vite.middlewares);
     } catch (err) {

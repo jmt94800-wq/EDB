@@ -20,6 +20,10 @@ export default function EntretienDetail() {
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [newDate, setNewDate] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
+  
+  const [clientSujets, setClientSujets] = useState<any[]>([]);
+  const [isAssigningSujet, setIsAssigningSujet] = useState(false);
+  const [newSujetTitre, setNewSujetTitre] = useState('');
 
   useEffect(() => {
     fetch(`/api/entretiens/${id}`)
@@ -29,8 +33,45 @@ export default function EntretienDetail() {
         if (data.notes) setNotes(data.notes);
         if (data.debriefing) setAiResult(data.debriefing.resume);
         setLoading(false);
+        
+        // Fetch client subjects if needed
+        if (data.client_id) {
+          fetch(`/api/clients/${data.client_id}`)
+            .then(res => res.json())
+            .then(clientData => {
+              if (clientData.sujets) setClientSujets(clientData.sujets);
+            });
+        }
       });
   }, [id]);
+
+  const handleCreateSujet = async () => {
+    if (!newSujetTitre.trim()) return;
+    
+    try {
+      const res = await fetch('/api/sujets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: entretien.client_id,
+          titre: newSujetTitre,
+          description: "Créé à l'issue de l'entretien"
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Assign this new sujet to the entretien
+        await updateEntretien({ sujet_id: data.id });
+        // Refresh subjects list
+        const clientData = await fetch(`/api/clients/${entretien.client_id}`).then(res => res.json());
+        if (clientData.sujets) setClientSujets(clientData.sujets);
+        setIsAssigningSujet(false);
+        setNewSujetTitre('');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleAnalyze = async () => {
     if (!transcription.trim() && !notes.trim()) {
@@ -43,7 +84,11 @@ export default function EntretienDetail() {
     setAiResult('');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("La clé API Gemini n'est pas configurée. Veuillez vérifier vos variables d'environnement.");
+      }
+      const ai = new GoogleGenAI({ apiKey });
       
       const systemInstruction = `Tu es un expert analyste de besoins clients pour une application de suivi d'entretiens commerciaux / networking (type CRM relationnel). Ton rôle est de débriefer les entretiens clients de manière professionnelle, précise et structurée.
 
@@ -173,7 +218,11 @@ ${notes || 'Aucunes notes fournies.'}
 
       const base64Data = await base64Promise;
       
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("La clé API Gemini n'est pas configurée. Veuillez vérifier vos variables d'environnement.");
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const model = 'gemini-3-flash-preview'; // Flash is great for transcription
 
       const response = await ai.models.generateContent({
@@ -237,7 +286,73 @@ ${notes || 'Aucunes notes fournies.'}
                 </button>
               )}
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">{entretien.sujet_titre || 'Entretien initial / Découverte'}</h1>
+            <div className="flex items-center gap-2 mb-2">
+              <h1 className="text-2xl font-bold text-slate-900">
+                {entretien.sujet_titre || 'Entretien initial / Découverte'}
+              </h1>
+              {!entretien.sujet_id && !isAssigningSujet && (
+                <button 
+                  onClick={() => setIsAssigningSujet(true)}
+                  className="text-xs bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded-md font-medium transition-colors"
+                >
+                  Définir le sujet
+                </button>
+              )}
+            </div>
+
+            {isAssigningSujet && (
+              <div className="mb-4 p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-800">Définir le sujet de l'entretien</h3>
+                  <button onClick={() => setIsAssigningSujet(false)} className="text-slate-400 hover:text-slate-600">
+                    <Clock size={16} className="rotate-45" />
+                  </button>
+                </div>
+                
+                <div className="space-y-3">
+                  {clientSujets.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Choisir un projet existant</label>
+                      <div className="flex gap-2">
+                        <select 
+                          className="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-1.5 outline-none bg-white"
+                          onChange={(e) => {
+                            if (e.target.value) updateEntretien({ sujet_id: parseInt(e.target.value) });
+                          }}
+                          value={entretien.sujet_id || ''}
+                        >
+                          <option value="">-- Sélectionner --</option>
+                          {clientSujets.map(s => (
+                            <option key={s.id} value={s.id}>{s.titre}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Ou créer un nouveau sujet</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Titre du nouveau sujet..."
+                        value={newSujetTitre}
+                        onChange={e => setNewSujetTitre(e.target.value)}
+                        className="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-1.5 outline-none"
+                      />
+                      <button 
+                        onClick={handleCreateSujet}
+                        disabled={!newSujetTitre.trim()}
+                        className="text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        Créer et lier
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <Link to={`/clients/${entretien.client_id}`} className="inline-flex items-center mt-2 text-indigo-600 hover:text-indigo-700 font-medium">
               <User className="w-4 h-4 mr-1.5" /> {entretien.client_prenom} {entretien.client_nom}
             </Link>
