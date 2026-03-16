@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { GoogleGenAI } from '@google/genai';
 import Markdown from 'react-markdown';
-import { ArrowLeft, User, Calendar, FileText, MessageSquare, Loader2, Send, CheckCircle, Clock } from 'lucide-react';
+import { ArrowLeft, User, Calendar, FileText, MessageSquare, Loader2, Send, CheckCircle, Clock, Upload, Music } from 'lucide-react';
 
 export default function EntretienDetail() {
   const { id } = useParams();
@@ -19,6 +19,7 @@ export default function EntretienDetail() {
   
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [newDate, setNewDate] = useState('');
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   useEffect(() => {
     fetch(`/api/entretiens/${id}`)
@@ -146,6 +147,68 @@ ${notes || 'Aucunes notes fournies.'}
     }
   };
 
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check if it's an audio file
+    if (!file.type.startsWith('audio/')) {
+      setAiError('Veuillez sélectionner un fichier audio valide.');
+      return;
+    }
+
+    setIsTranscribing(true);
+    setAiError('');
+
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const base64Data = await base64Promise;
+      
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const model = 'gemini-3-flash-preview'; // Flash is great for transcription
+
+      const response = await ai.models.generateContent({
+        model,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  mimeType: file.type,
+                  data: base64Data
+                }
+              },
+              {
+                text: "Peux-tu transcrire intégralement cet enregistrement audio en français ? Ne fais pas de résumé, juste la transcription brute mot à mot si possible."
+              }
+            ]
+          }
+        ]
+      });
+
+      const transcript = response.text || '';
+      setTranscription(prev => prev ? prev + "\n\n" + transcript : transcript);
+      
+    } catch (err: any) {
+      console.error('Transcription error:', err);
+      setAiError("Erreur lors de la transcription : " + (err.message || "Erreur inconnue"));
+    } finally {
+      setIsTranscribing(false);
+      // Reset input
+      e.target.value = '';
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-slate-500">Chargement...</div>;
   if (!entretien || entretien.error) return <div className="p-8 text-center text-red-500">Entretien introuvable</div>;
 
@@ -218,11 +281,34 @@ ${notes || 'Aucunes notes fournies.'}
             
             <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Transcription Audio/Vidéo</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-slate-700">Transcription Audio/Vidéo</label>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      accept="audio/*" 
+                      onChange={handleAudioUpload} 
+                      className="hidden" 
+                      id="audio-upload"
+                      disabled={isTranscribing}
+                    />
+                    <label 
+                      htmlFor="audio-upload" 
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium cursor-pointer transition-colors ${isTranscribing ? 'bg-slate-100 text-slate-400' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'}`}
+                    >
+                      {isTranscribing ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Upload size={14} />
+                      )}
+                      {isTranscribing ? 'Transcription...' : 'Importer Audio'}
+                    </label>
+                  </div>
+                </div>
                 <textarea 
                   value={transcription}
                   onChange={(e) => setTranscription(e.target.value)}
-                  placeholder="Collez la transcription ici..."
+                  placeholder="Collez la transcription ici ou importez un fichier audio..."
                   className="w-full h-40 rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow resize-y"
                 />
               </div>
